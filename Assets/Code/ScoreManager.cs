@@ -1,17 +1,15 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>Shows the total number of swords dodged this run.</summary>
 public class ScoreManager : MonoBehaviour
 {
     public Text scoreText;
-    private float score;
 
     void Update()
     {
-        if (GameObject.FindGameObjectWithTag("Player") != null)
-        {
-            score += 1 * Time.deltaTime;
-            scoreText.text = ((int)score).ToString();
-        }
+        if (scoreText == null) return;
+        var gm = GameManager.Instance;
+        scoreText.text = gm != null ? gm.TotalDodged.ToString() : "0";
     }
 }

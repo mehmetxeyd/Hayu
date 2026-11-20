@@ -1,20 +1,17 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Kept for the scene's existing Restart button. The game-over screen itself is
+/// now shown by GameManager.
+/// </summary>
 public class GameOver : MonoBehaviour
 {
     public GameObject gameOverPanel;
 
-    void Update()
-    {
-        if (GameObject.FindGameObjectWithTag("Player") == null)
-        {
-            gameOverPanel.SetActive(true);
-        }
-    }
-
     public void Restart()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        if (GameManager.Instance != null) GameManager.Instance.Restart(true);
+        else SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
