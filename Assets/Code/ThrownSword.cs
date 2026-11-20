@@ -12,7 +12,7 @@ public class ThrownSword : MonoBehaviour
         go.transform.position = position;
         go.transform.localScale = Vector3.one * 0.4f;
         var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = GameManager.LoadSprite("sword_pickup");
+        sr.sprite = LevelManager.LoadSprite("sword_pickup");
         sr.sortingOrder = 7;
         go.transform.rotation = Quaternion.Euler(0f, 0f, 90f); // golden sword art points down; turn it to point right
         var box = go.AddComponent<BoxCollider2D>();
@@ -28,7 +28,7 @@ public class ThrownSword : MonoBehaviour
 
     void Update()
     {
-        if (transform.position.x > GameManager.ViewRect.xMax + 2f) Destroy(gameObject);
+        if (transform.position.x > LevelManager.ViewRect.xMax + 2f) Destroy(gameObject);
     }
 
     void OnTriggerEnter2D(Collider2D other)

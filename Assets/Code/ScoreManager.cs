@@ -9,7 +9,7 @@ public class ScoreManager : MonoBehaviour
     void Update()
     {
         if (scoreText == null) return;
-        var gm = GameManager.Instance;
+        var gm = LevelManager.Instance;
         scoreText.text = gm != null ? gm.TotalDodged.ToString() : "0";
     }
 }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// A hostile sword. It flies in a straight line (horizontal or diagonal); touching
-/// the player costs a life. It reports back to the GameManager exactly once,
+/// the player costs a life. It reports back to the LevelManager exactly once,
 /// either when it leaves the screen (dodged) or when it hits.
 /// </summary>
 public class Obstacle : MonoBehaviour
@@ -38,7 +38,7 @@ public class Obstacle : MonoBehaviour
     void Update()
     {
         if (resolved) return;
-        Rect view = GameManager.ViewRect;
+        Rect view = LevelManager.ViewRect;
         Vector2 p = transform.position;
         bool gone = p.x < view.xMin - 2.5f
                     || (velocity.y > 0f && p.y > view.yMax + 2.5f)
@@ -53,7 +53,7 @@ public class Obstacle : MonoBehaviour
     void OnTriggerEnter2D(Collider2D other)
     {
         if (resolved || !other.CompareTag("Player")) return;
-        var gm = GameManager.Instance;
+        var gm = LevelManager.Instance;
         if (gm != null && gm.PlayerHit())
             Shatter(false);
         // If the player was invulnerable, the sword simply passes through.
@@ -63,7 +63,7 @@ public class Obstacle : MonoBehaviour
     {
         if (resolved) return;
         resolved = true;
-        if (GameManager.Instance != null) GameManager.Instance.OnSwordResolved(dodged);
+        if (LevelManager.Instance != null) LevelManager.Instance.OnSwordResolved(dodged);
     }
 
     /// <summary>Break the sword apart (hit the player, or knocked out by a thrown sword).</summary>

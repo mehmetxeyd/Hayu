@@ -75,7 +75,7 @@ public class Barrier : MonoBehaviour
     {
         GetComponent<Collider2D>().enabled = false;
         transform.position = restPosition;
-        if (GameManager.Instance != null) GameManager.Instance.OnBarrierBroken(restPosition);
+        if (LevelManager.Instance != null) LevelManager.Instance.OnBarrierBroken(restPosition);
 
         Vector3 scale = transform.localScale;
         for (float t = 0f; t < 0.8f; t += Time.deltaTime)

@@ -9,7 +9,7 @@ using UnityEngine.UI;
 /// game over and victory. It creates itself automatically when a scene with a
 /// "Player"-tagged object loads, so nothing has to be wired up in the scene.
 /// </summary>
-public class GameManager : MonoBehaviour
+public class LevelManager : MonoBehaviour
 {
     public enum State { Title, Intro, Playing, LevelClear, GameOver, Victory }
 
@@ -30,7 +30,7 @@ public class GameManager : MonoBehaviour
         public bool barrierLevel;
     }
 
-    public static GameManager Instance { get; private set; }
+    public static LevelManager Instance { get; private set; }
     static bool skipTitleOnLoad;
 
     public LevelSettings[] levels =
@@ -98,10 +98,10 @@ public class GameManager : MonoBehaviour
 
     static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        foreach (var existing in FindObjectsByType<GameManager>(FindObjectsSortMode.None))
+        foreach (var existing in FindObjectsByType<LevelManager>(FindObjectsSortMode.None))
             if (existing.gameObject.scene == scene) return;
         if (GameObject.FindGameObjectWithTag("Player") == null) return;
-        new GameObject("Hayu Game Manager").AddComponent<GameManager>();
+        new GameObject("Hayu Level Manager").AddComponent<LevelManager>();
     }
 
     // ------------------------------------------------------------------ lifecycle

@@ -47,8 +47,8 @@ public class GoalHeart : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (!other.CompareTag("Player") || GameManager.Instance == null) return;
-        GameManager.Instance.OnHeartReached();
+        if (!other.CompareTag("Player") || LevelManager.Instance == null) return;
+        LevelManager.Instance.OnHeartReached();
     }
 
     public void Celebrate()

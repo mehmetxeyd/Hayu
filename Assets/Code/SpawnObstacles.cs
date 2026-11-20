@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Spawns the swords for the current level. The GameManager starts and stops waves;
+/// Spawns the swords for the current level. The LevelManager starts and stops waves;
 /// swords enter from the right edge of the screen, and on later levels some drop in
 /// diagonally from above or below. On the barrier level, golden swords to collect
 /// are mixed in as well.
@@ -16,7 +16,7 @@ public class SpawnObstacles : MonoBehaviour
     [Tooltip("Keep swords this far from the top/bottom edge.")]
     public float edgeMargin = 0.8f;
 
-    GameManager.LevelSettings level;
+    LevelManager.LevelSettings level;
     bool running;
     int spawned;
     float nextSword;
@@ -26,7 +26,7 @@ public class SpawnObstacles : MonoBehaviour
     /// <summary>True once every sword of a counted wave has been spawned.</summary>
     public bool Finished => level != null && !level.barrierLevel && spawned >= level.swordCount;
 
-    public void StartWave(GameManager.LevelSettings settings)
+    public void StartWave(LevelManager.LevelSettings settings)
     {
         level = settings;
         spawned = 0;
@@ -57,8 +57,8 @@ public class SpawnObstacles : MonoBehaviour
 
     void SpawnSword()
     {
-        Rect view = GameManager.ViewRect;
-        Vector3 playerPos = GameManager.Instance != null ? GameManager.Instance.PlayerPosition : Vector3.zero;
+        Rect view = LevelManager.ViewRect;
+        Vector3 playerPos = LevelManager.Instance != null ? LevelManager.Instance.PlayerPosition : Vector3.zero;
         Vector3 pos;
         Vector2 dir;
         float speed = level.swordSpeed;
@@ -96,7 +96,7 @@ public class SpawnObstacles : MonoBehaviour
 
     void SpawnPickup()
     {
-        Rect view = GameManager.ViewRect;
+        Rect view = LevelManager.ViewRect;
         SwordPickup.Create(new Vector3(view.xMax - 2f, RandomY(view), 0f), pickupSpeed);
     }
 
@@ -110,7 +110,7 @@ public class SpawnObstacles : MonoBehaviour
         var art = new GameObject("Art");
         art.transform.SetParent(go.transform, false);
         var sr = art.AddComponent<SpriteRenderer>();
-        sr.sprite = GameManager.LoadSprite("sword");
+        sr.sprite = LevelManager.LoadSprite("sword");
         sr.sortingOrder = 5;
         var box = go.AddComponent<BoxCollider2D>();
         box.size = new Vector2(3.5f, 0.9f);

@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Kept for the scene's existing Restart button. The game-over screen itself is
-/// now shown by GameManager.
+/// now shown by LevelManager.
 /// </summary>
 public class GameOver : MonoBehaviour
 {
@@ -11,7 +11,7 @@ public class GameOver : MonoBehaviour
 
     public void Restart()
     {
-        if (GameManager.Instance != null) GameManager.Instance.Restart(true);
+        if (LevelManager.Instance != null) LevelManager.Instance.Restart(true);
         else SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

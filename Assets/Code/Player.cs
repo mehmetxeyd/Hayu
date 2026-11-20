@@ -45,7 +45,7 @@ public class Player : MonoBehaviour
             foreach (var r in renderers) r.enabled = visible;
         }
 
-        var gm = GameManager.Instance;
+        var gm = LevelManager.Instance;
         bool throwPressed = Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0);
         if (controllable && throwPressed && gm != null && gm.CanShoot && Time.time >= nextThrow && gm.TryUseAmmo())
         {
@@ -60,7 +60,7 @@ public class Player : MonoBehaviour
         body.linearVelocity = input * playerSpeed;
 
         // Keep the player on screen.
-        Rect view = GameManager.ViewRect;
+        Rect view = LevelManager.ViewRect;
         Vector2 ext = col != null ? (Vector2)col.bounds.extents : new Vector2(0.5f, 0.5f);
         Vector2 p = body.position;
         Vector2 clamped = new Vector2(

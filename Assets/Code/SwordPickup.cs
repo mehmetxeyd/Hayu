@@ -16,7 +16,7 @@ public class SwordPickup : MonoBehaviour
         go.transform.position = position;
         go.transform.localScale = Vector3.one * 0.32f;
         var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = GameManager.LoadSprite("sword_pickup");
+        sr.sprite = LevelManager.LoadSprite("sword_pickup");
         sr.sortingOrder = 6;
         var circle = go.AddComponent<CircleCollider2D>();
         circle.isTrigger = true;
@@ -43,14 +43,14 @@ public class SwordPickup : MonoBehaviour
         float glow = 0.85f + Mathf.Sin(phase * 8f) * 0.15f;
         sr.color = new Color(1f, glow, glow * 0.8f + 0.2f);
 
-        if (p.x < GameManager.ViewRect.xMin - 1.5f) Destroy(gameObject);
+        if (p.x < LevelManager.ViewRect.xMin - 1.5f) Destroy(gameObject);
     }
 
     void OnTriggerEnter2D(Collider2D other)
     {
         if (taken || !other.CompareTag("Player")) return;
         taken = true;
-        if (GameManager.Instance != null) GameManager.Instance.AddAmmo();
+        if (LevelManager.Instance != null) LevelManager.Instance.AddAmmo();
         StartCoroutine(Collect());
     }
 
