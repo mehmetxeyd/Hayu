@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      goldentiles_0: -425880359403849452
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
