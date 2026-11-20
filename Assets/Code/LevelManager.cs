@@ -83,6 +83,9 @@ public class LevelManager : MonoBehaviour
     Text overlayButtonText;
     System.Action overlayAction;
     Coroutine shakeRoutine;
+    GameManager startScreen;
+    bool waitingForStartPanel;
+    bool autoPressStart;
 
     public static Color Pink = new Color(1f, 0.42f, 0.62f);
     public static Color DeepPink = new Color(0.45f, 0f, 0.16f);
@@ -145,10 +148,30 @@ public class LevelManager : MonoBehaviour
         ApplyBackground(0);
         healthBar.Init(heartSprites);
 
+        startScreen = FindAnyObjectByType<GameManager>();
+
         if (skipTitleOnLoad)
         {
             skipTitleOnLoad = false;
-            StartCoroutine(BeginLevel(0));
+            if (startScreen != null && startScreen.startPanel != null)
+            {
+                // Press the start panel's button for the player on the first frame
+                // (after the scene's GameManager.Start has paused time).
+                CurrentState = State.Title;
+                waitingForStartPanel = true;
+                autoPressStart = true;
+            }
+            else
+            {
+                StartCoroutine(BeginLevel(0));
+            }
+        }
+        else if (startScreen != null && startScreen.startPanel != null)
+        {
+            // The scene's own start panel is the title screen; wait for its Start button.
+            CurrentState = State.Title;
+            player.SetControllable(false);
+            waitingForStartPanel = true;
         }
         else
         {
@@ -159,6 +182,27 @@ public class LevelManager : MonoBehaviour
     void Update()
     {
         bool confirm = Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+
+        if (waitingForStartPanel)
+        {
+            if (autoPressStart)
+            {
+                autoPressStart = false;
+                startScreen.StartGame();
+            }
+            if (GameManager.gameStarted || (startScreen != null && startScreen.startPanel != null && !startScreen.startPanel.activeInHierarchy))
+            {
+                waitingForStartPanel = false;
+                Time.timeScale = 1f;
+                StartCoroutine(BeginLevel(0));
+            }
+            else if (confirm && startScreen != null)
+            {
+                startScreen.StartGame();
+            }
+            UpdateHud();
+            return;
+        }
 
         switch (CurrentState)
         {
@@ -241,8 +285,9 @@ public class LevelManager : MonoBehaviour
 
         yield return new WaitForSeconds(1.8f);
 
+        int best = GameOver.SaveHighScore(TotalDodged);
         ShowOverlay(gameOverSprite,
-            "Your heart broke on " + Level.title + ".\nSwords dodged: " + TotalDodged,
+            "Your heart broke on " + Level.title + ".\nSwords dodged: " + TotalDodged + "    Best: " + best,
             "TRY AGAIN", () => Restart(true));
     }
 
@@ -262,8 +307,9 @@ public class LevelManager : MonoBehaviour
         }
         yield return new WaitForSeconds(1.2f);
 
+        int best = GameOver.SaveHighScore(TotalDodged);
         ShowOverlay(goalHeartSprite,
-            "You broke through and found the heart that was waiting for you.\nSwords dodged: " + TotalDodged,
+            "You broke through and found the heart that was waiting for you.\nSwords dodged: " + TotalDodged + "    Best: " + best,
             "PLAY AGAIN", () => Restart(false));
     }
 
@@ -271,6 +317,7 @@ public class LevelManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         skipTitleOnLoad = skipTitle;
+        GameManager.gameStarted = false;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
