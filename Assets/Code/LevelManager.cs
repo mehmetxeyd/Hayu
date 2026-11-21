@@ -43,7 +43,7 @@ public class LevelManager : MonoBehaviour
 
     public LevelSettings[] levels =
     {
-        new LevelSettings { title = "LEVEL 1", banner = "banner_level1", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, backgroundSpeed = 0.5f, background = "bg_level1" },
+        new LevelSettings { title = "LEVEL 1", banner = "banner_level1", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, parallax = "sky1", parallaxSpeeds = new[] { 0f, 0.4f, 1.2f, 3f } },
         new LevelSettings { title = "LEVEL 2", banner = "banner_level2", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, parallax = "sky2", parallaxSpeeds = new[] { 0f, 0.2f, 0.9f, 2.8f } },
         new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, parallax = "sky3", parallaxSpeeds = new[] { 0f, 0.15f, 0.5f, 1.2f, 2.4f }, barrierLevel = true },
     };
