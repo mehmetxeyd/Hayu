@@ -30,6 +30,8 @@ public class LevelManager : MonoBehaviour
         public float backgroundSpeed = 0.5f;
         [Tooltip("Texture in Resources/Hayu used for the looping background.")]
         public string background;
+        [Tooltip("Layered parallax background: sprites Resources/Hayu/<name>_0, _1, ... ordered far to near. Replaces 'background' when set.")]
+        public string parallax;
         [Tooltip("Level 3: collect golden swords and throw them at the barrier.")]
         public bool barrierLevel;
     }
@@ -41,8 +43,11 @@ public class LevelManager : MonoBehaviour
     {
         new LevelSettings { title = "LEVEL 1", banner = "banner_level1", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, backgroundSpeed = 0.5f, background = "bg_level1" },
         new LevelSettings { title = "LEVEL 2", banner = "banner_level2", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, backgroundSpeed = 0.7f, background = "bg_level2" },
-        new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, backgroundSpeed = 0.3f, background = "bg_level3", barrierLevel = true },
+        new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, parallax = "sky3", barrierLevel = true },
     };
+
+    [Tooltip("Scroll speed (world units/sec) of each parallax layer, far to near. The sky stays still; the nearest clouds move fastest.")]
+    public float[] parallaxSpeeds = { 0f, 0.15f, 0.5f, 1.2f, 2.4f };
 
     [Tooltip("Mend one crack of the heart after clearing a level.")]
     public bool healBetweenLevels = true;
@@ -64,6 +69,8 @@ public class LevelManager : MonoBehaviour
     Player player;
     SpawnObstacles spawner;
     LoopingBackground background;
+    ParallaxBackground parallax;
+    Vector3 camStartPos;
     Camera cam;
     Vector3 camBaseLocalPos;
 
@@ -132,7 +139,11 @@ public class LevelManager : MonoBehaviour
         LoadArt();
 
         cam = Camera.main;
-        if (cam != null) camBaseLocalPos = cam.transform.localPosition;
+        if (cam != null)
+        {
+            camBaseLocalPos = cam.transform.localPosition;
+            camStartPos = cam.transform.position;
+        }
 
         var playerGo = GameObject.FindGameObjectWithTag("Player");
         player = playerGo.GetComponent<Player>();
@@ -293,6 +304,7 @@ public class LevelManager : MonoBehaviour
         CurrentState = State.GameOver;
         spawner.Stop();
         if (background != null) background.backgroundSpeed = 0f;
+        if (parallax != null) parallax.speedMultiplier = 0f;
         player.Die();
         Shake(0.6f, 0.45f);
 
@@ -463,8 +475,32 @@ public class LevelManager : MonoBehaviour
 
     void ApplyBackground(int index)
     {
-        if (background == null || index >= levels.Length) return;
+        if (index >= levels.Length) return;
         var l = levels[index];
+
+        bool wantParallax = !string.IsNullOrEmpty(l.parallax);
+        if (wantParallax && parallax == null)
+        {
+            var layers = new System.Collections.Generic.List<Sprite>();
+            for (int i = 0; ; i++)
+            {
+                var s = Resources.Load<Sprite>("Hayu/" + l.parallax + "_" + i);
+                if (s == null) break;
+                layers.Add(s);
+            }
+            if (layers.Count > 0)
+                parallax = ParallaxBackground.Create(layers.ToArray(), parallaxSpeeds, camStartPos, ViewRect.height);
+        }
+        else if (!wantParallax && parallax != null)
+        {
+            Destroy(parallax.gameObject);
+            parallax = null;
+        }
+
+        if (background == null) return;
+        // The single looping quad is hidden while the layered background is showing.
+        var quad = background.GetComponent<Renderer>();
+        if (quad != null) quad.enabled = parallax == null;
         background.backgroundSpeed = l.backgroundSpeed;
         if (!string.IsNullOrEmpty(l.background))
         {
