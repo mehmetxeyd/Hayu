@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -17,6 +18,9 @@ public class LevelManager : MonoBehaviour
     public class LevelSettings
     {
         public string title;
+        [Tooltip("Banner image in Resources/Hayu shown when the level starts.")]
+        public string banner;
+        [Tooltip("One short hint under the banner (leave empty for none).")]
         public string subtitle;
         [Tooltip("Swords that must pass before the level is cleared (ignored on the barrier level).")]
         public int swordCount = 25;
@@ -35,9 +39,9 @@ public class LevelManager : MonoBehaviour
 
     public LevelSettings[] levels =
     {
-        new LevelSettings { title = "LEVEL 1", subtitle = "Dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, backgroundSpeed = 0.5f, background = "bg_level1" },
-        new LevelSettings { title = "LEVEL 2", subtitle = "Watch the diagonals - dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, backgroundSpeed = 0.7f, background = "bg_level2" },
-        new LevelSettings { title = "LEVEL 3", subtitle = "Catch golden swords, throw them (SPACE) at the barrier", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, backgroundSpeed = 0.3f, background = "bg_level3", barrierLevel = true },
+        new LevelSettings { title = "LEVEL 1", banner = "banner_level1", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, backgroundSpeed = 0.5f, background = "bg_level1" },
+        new LevelSettings { title = "LEVEL 2", banner = "banner_level2", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, backgroundSpeed = 0.7f, background = "bg_level2" },
+        new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, backgroundSpeed = 0.3f, background = "bg_level3", barrierLevel = true },
     };
 
     [Tooltip("Mend one crack of the heart after clearing a level.")]
@@ -66,6 +70,7 @@ public class LevelManager : MonoBehaviour
     // Art
     Sprite[] heartSprites;
     Sprite goalHeartSprite, startSprite, gameOverSprite, pickupSprite;
+    Sprite clearBanner, winBanner, pausedBanner, startButton, retryButton, againButton;
     Sprite[] barrierSprites;
 
     // Level 3
@@ -73,22 +78,24 @@ public class LevelManager : MonoBehaviour
     GoalHeart goalHeart;
 
     // UI
-    Font font;
+    TMP_FontAsset font;
+    Material textMaterial;
     HealthBar healthBar;
-    Text levelText, progressText, ammoText, bannerTitle, bannerSub, overlayMessage, pauseText;
-    GameObject ammoGroup, overlay;
-    Image overlayImage, fader;
+    TextMeshProUGUI progressText, ammoText, bannerSub, overlayMessage;
+    GameObject ammoGroup, overlay, pauseImage;
+    Image overlayImage, bannerImage, fader;
     CanvasGroup bannerGroup;
     Button overlayButton;
-    Text overlayButtonText;
+    Image overlayButtonImage;
     System.Action overlayAction;
     Coroutine shakeRoutine;
     GameManager startScreen;
     bool waitingForStartPanel;
     bool autoPressStart;
 
-    public static Color Pink = new Color(1f, 0.42f, 0.62f);
-    public static Color DeepPink = new Color(0.45f, 0f, 0.16f);
+    // Same colours as the title art.
+    public static Color Pink = new Color32(254, 115, 164, 255);
+    public static Color DeepPink = new Color32(206, 0, 73, 255);
 
     // ------------------------------------------------------------------ bootstrap
 
@@ -143,6 +150,13 @@ public class LevelManager : MonoBehaviour
         // The old polling game-over panel is replaced by the new overlay.
         var oldGameOver = FindAnyObjectByType<GameOver>();
         if (oldGameOver != null && oldGameOver.gameOverPanel != null) oldGameOver.gameOverPanel.SetActive(false);
+
+        // The scene's score / high-score labels overlapped the heart; the HUD and end screens show these now.
+        foreach (var sm in FindObjectsByType<ScoreManager>(FindObjectsSortMode.None))
+            if (sm.scoreText != null) sm.scoreText.gameObject.SetActive(false);
+        foreach (var hs in FindObjectsByType<HighScore>(FindObjectsSortMode.None))
+            if (hs.highScoreText != null) hs.highScoreText.gameObject.SetActive(false);
+        if (oldGameOver != null && oldGameOver.highScoreText != null) oldGameOver.highScoreText.gameObject.SetActive(false);
 
         BuildUI();
         ApplyBackground(0);
@@ -228,9 +242,8 @@ public class LevelManager : MonoBehaviour
     {
         CurrentState = State.Title;
         player.SetControllable(false);
-        ShowOverlay(startSprite,
-            "Protect your heart.\nMove with  W/S  or  the arrow keys.\nEach sword that hits you drives the blade deeper.",
-            "START", () => { HideOverlay(); StartCoroutine(BeginLevel(0)); });
+        ShowOverlay(startSprite, "move with W/S or the arrow keys",
+            startButton, () => { HideOverlay(); StartCoroutine(BeginLevel(0)); });
     }
 
     IEnumerator BeginLevel(int index)
@@ -246,7 +259,7 @@ public class LevelManager : MonoBehaviour
 
         if (Level.barrierLevel) SpawnBarrier();
 
-        yield return ShowBanner(Level.title, Level.subtitle, 2.2f);
+        yield return ShowBanner(LoadSprite(Level.banner), Level.subtitle, 2f);
 
         CurrentState = State.Playing;
         spawner.StartWave(Level);
@@ -257,7 +270,7 @@ public class LevelManager : MonoBehaviour
         CurrentState = State.LevelClear;
         spawner.Stop();
 
-        yield return ShowBanner("LEVEL CLEAR!", "Swords dodged: " + TotalDodged, 1.6f);
+        yield return ShowBanner(clearBanner, "", 1.3f);
 
         if (healBetweenLevels && Damage > 0)
         {
@@ -286,9 +299,8 @@ public class LevelManager : MonoBehaviour
         yield return new WaitForSeconds(1.8f);
 
         int best = GameOver.SaveHighScore(TotalDodged);
-        ShowOverlay(gameOverSprite,
-            "Your heart broke on " + Level.title + ".\nSwords dodged: " + TotalDodged + "    Best: " + best,
-            "TRY AGAIN", () => Restart(true));
+        ShowOverlay(gameOverSprite, TotalDodged + " swords   best " + best,
+            retryButton, () => Restart(true));
     }
 
     IEnumerator VictoryRoutine()
@@ -308,9 +320,8 @@ public class LevelManager : MonoBehaviour
         yield return new WaitForSeconds(1.2f);
 
         int best = GameOver.SaveHighScore(TotalDodged);
-        ShowOverlay(goalHeartSprite,
-            "You broke through and found the heart that was waiting for you.\nSwords dodged: " + TotalDodged + "    Best: " + best,
-            "PLAY AGAIN", () => Restart(false));
+        ShowOverlay(winBanner, TotalDodged + " swords   best " + best,
+            againButton, () => Restart(false));
     }
 
     public void Restart(bool skipTitle)
@@ -325,7 +336,7 @@ public class LevelManager : MonoBehaviour
     {
         Paused = !Paused;
         Time.timeScale = Paused ? 0f : 1f;
-        pauseText.gameObject.SetActive(Paused);
+        pauseImage.SetActive(Paused);
     }
 
     // ------------------------------------------------------------------ gameplay events
@@ -385,7 +396,7 @@ public class LevelManager : MonoBehaviour
 
         goalHeart = GoalHeart.Create(goalHeartSprite, position, new Vector3(ViewRect.center.x + ViewRect.width * 0.25f, 0f, 0f));
         player.SetFreeMovement(true);
-        StartCoroutine(ShowBanner("THE BARRIER SHATTERS", "Go to your heart", 2.2f));
+        StartCoroutine(ShowBanner(null, "go to your heart", 1.6f));
     }
 
     public void OnHeartReached()
@@ -440,6 +451,12 @@ public class LevelManager : MonoBehaviour
         goalHeartSprite = LoadSprite("heart_goal");
         startSprite = LoadSprite("startgame");
         gameOverSprite = LoadSprite("gameover");
+        clearBanner = LoadSprite("banner_clear");
+        winBanner = LoadSprite("banner_win");
+        pausedBanner = LoadSprite("banner_paused");
+        startButton = LoadSprite("button_start");
+        retryButton = LoadSprite("button_retry");
+        againButton = LoadSprite("button_again");
         pickupSprite = LoadSprite("sword_pickup");
         barrierSprites = new[] { LoadSprite("barrier_0"), LoadSprite("barrier_1"), LoadSprite("barrier_2") };
     }
@@ -477,11 +494,12 @@ public class LevelManager : MonoBehaviour
         shakeRoutine = null;
     }
 
+
     // ------------------------------------------------------------------ UI
 
     void BuildUI()
     {
-        font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        CreateFont();
 
         if (FindAnyObjectByType<EventSystem>() == null)
         {
@@ -502,19 +520,12 @@ public class LevelManager : MonoBehaviour
         var root = canvasGo.transform;
 
         // Heart health bar (top-left)
-        var heartGo = new GameObject("Heart Health", typeof(RectTransform), typeof(Image));
-        heartGo.transform.SetParent(root, false);
-        var heartRt = (RectTransform)heartGo.transform;
-        heartRt.anchorMin = heartRt.anchorMax = new Vector2(0f, 1f);
-        heartRt.pivot = new Vector2(0.5f, 0.5f);
-        heartRt.sizeDelta = new Vector2(190f, 190f);
-        heartRt.anchoredPosition = new Vector2(120f, -115f);
-        heartGo.GetComponent<Image>().raycastTarget = false;
-        healthBar = heartGo.AddComponent<HealthBar>();
+        var heartImg = CreateImage(root, "Heart Health", null, new Vector2(0f, 1f), new Vector2(120f, -115f));
+        ((RectTransform)heartImg.transform).sizeDelta = new Vector2(190f, 190f);
+        healthBar = heartImg.gameObject.AddComponent<HealthBar>();
 
-        levelText = CreateText(root, "Level", 44, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(900f, 60f));
-        progressText = CreateText(root, "Progress", 34, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -85f), new Vector2(900f, 50f));
-        progressText.color = Color.white;
+        // Sword counter (top-centre)
+        progressText = CreateText(root, "Progress", 46, new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(600f, 70f));
 
         // Ammo (top-right, level 3 only)
         ammoGroup = new GameObject("Ammo", typeof(RectTransform));
@@ -523,111 +534,103 @@ public class LevelManager : MonoBehaviour
         ammoRt.anchorMin = ammoRt.anchorMax = new Vector2(1f, 1f);
         ammoRt.anchoredPosition = new Vector2(-170f, -100f);
         ammoRt.sizeDelta = new Vector2(300f, 120f);
-        var ammoIcon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
-        ammoIcon.transform.SetParent(ammoGroup.transform, false);
-        var iconRt = (RectTransform)ammoIcon.transform;
-        iconRt.anchoredPosition = new Vector2(-60f, 0f);
-        iconRt.sizeDelta = new Vector2(120f, 120f);
-        iconRt.localRotation = Quaternion.Euler(0f, 0f, -35f);
-        var iconImg = ammoIcon.GetComponent<Image>();
-        iconImg.sprite = pickupSprite;
-        iconImg.preserveAspect = true;
-        iconImg.raycastTarget = false;
-        ammoText = CreateText(ammoGroup.transform, "Count", 52, TextAnchor.MiddleLeft, new Vector2(0.5f, 0.5f), new Vector2(70f, 0f), new Vector2(160f, 80f));
+        var icon = CreateImage(ammoGroup.transform, "Icon", pickupSprite, new Vector2(0.5f, 0.5f), new Vector2(-50f, 0f));
+        ((RectTransform)icon.transform).sizeDelta = new Vector2(110f, 110f);
+        icon.transform.localRotation = Quaternion.Euler(0f, 0f, -35f);
+        ammoText = CreateText(ammoGroup.transform, "Count", 56, new Vector2(0.5f, 0.5f), new Vector2(50f, 0f), new Vector2(120f, 80f));
+        ammoText.alignment = TextAlignmentOptions.Left;
         ammoGroup.SetActive(false);
 
-        // Banner (center)
+        // Banner (centre): pixel-art title image + one short hint
         var bannerGo = new GameObject("Banner", typeof(RectTransform), typeof(CanvasGroup));
         bannerGo.transform.SetParent(root, false);
         var bannerRt = (RectTransform)bannerGo.transform;
         bannerRt.anchorMin = bannerRt.anchorMax = new Vector2(0.5f, 0.5f);
         bannerRt.sizeDelta = new Vector2(1600f, 300f);
-        bannerRt.anchoredPosition = new Vector2(0f, 120f);
+        bannerRt.anchoredPosition = new Vector2(0f, 110f);
         bannerGroup = bannerGo.GetComponent<CanvasGroup>();
         bannerGroup.alpha = 0f;
         bannerGroup.blocksRaycasts = false;
-        bannerTitle = CreateText(bannerGo.transform, "Title", 110, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(1600f, 140f));
-        bannerSub = CreateText(bannerGo.transform, "Subtitle", 40, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -60f), new Vector2(1600f, 60f));
-        bannerSub.color = Color.white;
+        bannerImage = CreateImage(bannerGo.transform, "Title", null, new Vector2(0.5f, 0.5f), new Vector2(0f, 30f));
+        bannerSub = CreateText(bannerGo.transform, "Hint", 40, new Vector2(0.5f, 0.5f), new Vector2(0f, -70f), new Vector2(1600f, 60f));
 
-        pauseText = CreateText(root, "Paused", 90, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1200f, 300f));
-        pauseText.text = "PAUSED\n<size=36>press  P  or  ESC  to continue</size>";
-        pauseText.gameObject.SetActive(false);
+        pauseImage = CreateImage(root, "Paused", pausedBanner, new Vector2(0.5f, 0.5f), Vector2.zero).gameObject;
+        SetPixelSize(pauseImage.GetComponent<Image>(), pausedBanner);
+        pauseImage.SetActive(false);
 
         // Overlay (title / game over / victory)
         overlay = new GameObject("Overlay", typeof(RectTransform), typeof(Image));
         overlay.transform.SetParent(root, false);
         Stretch((RectTransform)overlay.transform);
-        overlay.GetComponent<Image>().color = new Color(0.08f, 0.03f, 0.08f, 0.72f);
+        overlay.GetComponent<Image>().color = new Color(0.08f, 0.02f, 0.05f, 0.6f);
 
-        var picGo = new GameObject("Picture", typeof(RectTransform), typeof(Image));
-        picGo.transform.SetParent(overlay.transform, false);
-        var picRt = (RectTransform)picGo.transform;
-        picRt.anchoredPosition = new Vector2(0f, 190f);
-        picRt.sizeDelta = new Vector2(900f, 420f);
-        overlayImage = picGo.GetComponent<Image>();
-        overlayImage.preserveAspect = true;
-        overlayImage.raycastTarget = false;
+        overlayImage = CreateImage(overlay.transform, "Picture", null, new Vector2(0.5f, 0.5f), new Vector2(0f, 130f));
+        overlayMessage = CreateText(overlay.transform, "Message", 40, new Vector2(0.5f, 0.5f), new Vector2(0f, -70f), new Vector2(1500f, 60f));
 
-        overlayMessage = CreateText(overlay.transform, "Message", 36, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -110f), new Vector2(1500f, 170f));
-        overlayMessage.color = Color.white;
-
-        var buttonGo = new GameObject("Button", typeof(RectTransform), typeof(Image), typeof(Button));
-        buttonGo.transform.SetParent(overlay.transform, false);
-        var buttonRt = (RectTransform)buttonGo.transform;
-        buttonRt.anchoredPosition = new Vector2(0f, -290f);
-        buttonRt.sizeDelta = new Vector2(380f, 100f);
-        buttonGo.GetComponent<Image>().color = new Color(0.89f, 0.06f, 0.34f);
-        overlayButton = buttonGo.GetComponent<Button>();
+        overlayButtonImage = CreateImage(overlay.transform, "Button", null, new Vector2(0.5f, 0.5f), new Vector2(0f, -210f));
+        overlayButtonImage.raycastTarget = true;
+        overlayButton = overlayButtonImage.gameObject.AddComponent<Button>();
         var colors = overlayButton.colors;
-        colors.highlightedColor = new Color(1f, 0.8f, 0.85f);
-        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1f, 0.85f, 0.9f);
+        colors.pressedColor = new Color(0.8f, 0.7f, 0.75f);
+        colors.selectedColor = Color.white;
         overlayButton.colors = colors;
         overlayButton.onClick.AddListener(PressOverlayButton);
-        overlayButtonText = CreateText(buttonGo.transform, "Label", 44, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(380f, 100f));
-        overlayButtonText.color = Color.white;
         overlay.SetActive(false);
 
         // Full-screen fader for level transitions
-        var faderGo = new GameObject("Fader", typeof(RectTransform), typeof(Image));
-        faderGo.transform.SetParent(root, false);
-        Stretch((RectTransform)faderGo.transform);
-        fader = faderGo.GetComponent<Image>();
+        fader = CreateImage(root, "Fader", null, Vector2.zero, Vector2.zero);
+        Stretch((RectTransform)fader.transform);
         fader.color = new Color(0f, 0f, 0f, 0f);
-        fader.raycastTarget = false;
+    }
+
+    void CreateFont()
+    {
+        var ttf = Resources.Load<Font>("Hayu/pixel_font");
+        if (ttf != null) font = TMP_FontAsset.CreateFontAsset(ttf);
+        if (font == null) font = TMP_Settings.defaultFontAsset;
+        if (font == null) return;
+
+        // Minecraft-style hard drop shadow in the title's dark pink.
+        textMaterial = new Material(font.material);
+        textMaterial.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+        textMaterial.SetColor(ShaderUtilities.ID_UnderlayColor, DeepPink);
+        textMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0.9f);
+        textMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.9f);
+        textMaterial.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0f);
+        textMaterial.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0f);
     }
 
     void UpdateHud()
     {
-        if (levelText == null) return;
+        if (progressText == null) return;
         bool inGame = CurrentState != State.Title;
-        levelText.gameObject.SetActive(inGame);
-        progressText.gameObject.SetActive(inGame);
         healthBar.gameObject.SetActive(inGame);
 
-        levelText.text = Level.title;
-        if (Level.barrierLevel)
-        {
-            progressText.text = barrier != null && !barrier.IsBroken
-                ? "Barrier  " + barrier.Health + " / " + barrierHealth
-                : "Reach your heart";
-        }
-        else
-        {
-            progressText.text = "Swords dodged  " + Mathf.Min(SwordsPassed, Level.swordCount) + " / " + Level.swordCount;
-        }
+        string progress = "";
+        if (inGame && !Level.barrierLevel && CurrentState != State.GameOver)
+            progress = Mathf.Min(SwordsPassed, Level.swordCount) + " / " + Level.swordCount;
+        progressText.text = progress;
 
-        bool showAmmo = inGame && Level.barrierLevel && barrier != null && !barrier.IsBroken;
+        bool showAmmo = inGame && Level.barrierLevel && barrier != null && !barrier.IsBroken && CurrentState == State.Playing;
         if (ammoGroup.activeSelf != showAmmo) ammoGroup.SetActive(showAmmo);
-        ammoText.text = "x " + Ammo;
+        ammoText.text = Ammo.ToString();
     }
 
-    void ShowOverlay(Sprite picture, string message, string button, System.Action action)
+    void ShowOverlay(Sprite picture, string message, Sprite button, System.Action action)
     {
         overlayImage.sprite = picture;
         overlayImage.enabled = picture != null;
+        if (picture != null)
+        {
+            // Small sprites are pixel-art banners; big ones (like GAME OVER) are full images.
+            if (picture.rect.width < 300f) SetPixelSize(overlayImage, picture);
+            else ((RectTransform)overlayImage.transform).sizeDelta = picture.rect.size * (380f / picture.rect.height);
+        }
         overlayMessage.text = message;
-        overlayButtonText.text = button;
+        overlayButtonImage.sprite = button;
+        SetPixelSize(overlayButtonImage, button, 7f);
         overlayAction = action;
         overlay.SetActive(true);
     }
@@ -641,24 +644,27 @@ public class LevelManager : MonoBehaviour
         a?.Invoke();
     }
 
-    IEnumerator ShowBanner(string title, string subtitle, float hold)
+    IEnumerator ShowBanner(Sprite title, string hint, float hold)
     {
-        bannerTitle.text = title;
-        bannerSub.text = subtitle;
+        bannerImage.sprite = title;
+        bannerImage.enabled = title != null;
+        if (title != null) SetPixelSize(bannerImage, title);
+        bannerSub.text = hint ?? "";
+
         var rt = (RectTransform)bannerGroup.transform;
-        for (float t = 0f; t < 0.3f; t += Time.deltaTime)
+        for (float t = 0f; t < 0.25f; t += Time.deltaTime)
         {
-            float k = t / 0.3f;
+            float k = t / 0.25f;
             bannerGroup.alpha = k;
-            rt.localScale = Vector3.one * Mathf.Lerp(1.3f, 1f, k);
+            rt.localScale = Vector3.one * Mathf.Lerp(1.15f, 1f, k);
             yield return null;
         }
         bannerGroup.alpha = 1f;
         rt.localScale = Vector3.one;
         yield return new WaitForSeconds(hold);
-        for (float t = 0f; t < 0.3f; t += Time.deltaTime)
+        for (float t = 0f; t < 0.25f; t += Time.deltaTime)
         {
-            bannerGroup.alpha = 1f - t / 0.3f;
+            bannerGroup.alpha = 1f - t / 0.25f;
             yield return null;
         }
         bannerGroup.alpha = 0f;
@@ -674,29 +680,46 @@ public class LevelManager : MonoBehaviour
         fader.color = new Color(0f, 0f, 0f, to);
     }
 
-    Text CreateText(Transform parent, string name, int size, TextAnchor align, Vector2 anchor, Vector2 pos, Vector2 box)
+    TextMeshProUGUI CreateText(Transform parent, string name, float size, Vector2 anchor, Vector2 pos, Vector2 box)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(Outline));
+        var go = new GameObject(name, typeof(RectTransform));
         go.transform.SetParent(parent, false);
         var rt = (RectTransform)go.transform;
         rt.anchorMin = rt.anchorMax = anchor;
-        rt.pivot = new Vector2(0.5f, anchor.y >= 1f ? 1f : 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = pos;
         rt.sizeDelta = box;
-        var t = go.GetComponent<Text>();
-        t.font = font;
+        var t = go.AddComponent<TextMeshProUGUI>();
+        if (font != null) t.font = font;
+        if (textMaterial != null) t.fontSharedMaterial = textMaterial;
         t.fontSize = size;
-        t.fontStyle = FontStyle.Bold;
-        t.alignment = align;
+        t.alignment = TextAlignmentOptions.Center;
         t.color = Pink;
-        t.supportRichText = true;
         t.raycastTarget = false;
-        t.horizontalOverflow = HorizontalWrapMode.Overflow;
-        t.verticalOverflow = VerticalWrapMode.Overflow;
-        var o = go.GetComponent<Outline>();
-        o.effectColor = DeepPink;
-        o.effectDistance = new Vector2(3f, -3f);
+        t.overflowMode = TextOverflowModes.Overflow;
         return t;
+    }
+
+    static Image CreateImage(Transform parent, string name, Sprite sprite, Vector2 anchor, Vector2 pos)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        var img = go.GetComponent<Image>();
+        img.sprite = sprite;
+        img.preserveAspect = true;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    /// <summary>Size a pixel-art sprite as a whole multiple of its pixels so it stays crisp.</summary>
+    static void SetPixelSize(Image img, Sprite sprite, float scale = 11f)
+    {
+        if (sprite == null) return;
+        ((RectTransform)img.transform).sizeDelta = sprite.rect.size * scale;
     }
 
     static void Stretch(RectTransform rt)
