@@ -32,6 +32,8 @@ public class LevelManager : MonoBehaviour
         public string background;
         [Tooltip("Layered parallax background: sprites Resources/Hayu/<name>_0, _1, ... ordered far to near. Replaces 'background' when set.")]
         public string parallax;
+        [Tooltip("Scroll speed (world units/sec) of each parallax layer, far to near. The sky stays still; the nearest clouds move fastest.")]
+        public float[] parallaxSpeeds;
         [Tooltip("Level 3: collect golden swords and throw them at the barrier.")]
         public bool barrierLevel;
     }
@@ -42,12 +44,9 @@ public class LevelManager : MonoBehaviour
     public LevelSettings[] levels =
     {
         new LevelSettings { title = "LEVEL 1", banner = "banner_level1", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.85f, swordSpeed = 9f, diagonalChance = 0f, backgroundSpeed = 0.5f, background = "bg_level1" },
-        new LevelSettings { title = "LEVEL 2", banner = "banner_level2", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, backgroundSpeed = 0.7f, background = "bg_level2" },
-        new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, parallax = "sky3", barrierLevel = true },
+        new LevelSettings { title = "LEVEL 2", banner = "banner_level2", subtitle = "dodge 25 swords", swordCount = 25, spawnInterval = 0.8f, swordSpeed = 10f, diagonalChance = 0.45f, parallax = "sky2", parallaxSpeeds = new[] { 0f, 0.2f, 0.9f, 2.8f } },
+        new LevelSettings { title = "LEVEL 3", banner = "banner_level3", subtitle = "catch gold swords - SPACE to throw", spawnInterval = 1.7f, swordSpeed = 8f, diagonalChance = 0.35f, parallax = "sky3", parallaxSpeeds = new[] { 0f, 0.15f, 0.5f, 1.2f, 2.4f }, barrierLevel = true },
     };
-
-    [Tooltip("Scroll speed (world units/sec) of each parallax layer, far to near. The sky stays still; the nearest clouds move fastest.")]
-    public float[] parallaxSpeeds = { 0f, 0.15f, 0.5f, 1.2f, 2.4f };
 
     [Tooltip("Mend one crack of the heart after clearing a level.")]
     public bool healBetweenLevels = true;
@@ -70,6 +69,7 @@ public class LevelManager : MonoBehaviour
     SpawnObstacles spawner;
     LoopingBackground background;
     ParallaxBackground parallax;
+    string parallaxName;
     Vector3 camStartPos;
     Camera cam;
     Vector3 camBaseLocalPos;
@@ -479,6 +479,11 @@ public class LevelManager : MonoBehaviour
         var l = levels[index];
 
         bool wantParallax = !string.IsNullOrEmpty(l.parallax);
+        if (parallax != null && parallaxName != l.parallax)
+        {
+            Destroy(parallax.gameObject);
+            parallax = null;
+        }
         if (wantParallax && parallax == null)
         {
             var layers = new System.Collections.Generic.List<Sprite>();
@@ -489,12 +494,11 @@ public class LevelManager : MonoBehaviour
                 layers.Add(s);
             }
             if (layers.Count > 0)
-                parallax = ParallaxBackground.Create(layers.ToArray(), parallaxSpeeds, camStartPos, ViewRect.height);
-        }
-        else if (!wantParallax && parallax != null)
-        {
-            Destroy(parallax.gameObject);
-            parallax = null;
+            {
+                var speeds = l.parallaxSpeeds != null && l.parallaxSpeeds.Length > 0 ? l.parallaxSpeeds : new[] { 0f, 0.5f, 1.5f };
+                parallax = ParallaxBackground.Create(layers.ToArray(), speeds, camStartPos, ViewRect.height);
+                parallaxName = l.parallax;
+            }
         }
 
         if (background == null) return;
